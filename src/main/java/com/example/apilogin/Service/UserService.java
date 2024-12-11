@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class LoginService {
+public class UserService {
 
     @Autowired
     private UserRepo userRepo;
@@ -25,7 +25,12 @@ public class LoginService {
         return (userModel) userRepo.findByUsername(username).orElse(null);
     }
 
-    public LoginService() {}
+    public boolean createUser(userModel user) {
+        userRepo.save(user);
+        return true;
+    }
+
+    public UserService() {}
 
 
     public boolean authenticate(String username, String password) {

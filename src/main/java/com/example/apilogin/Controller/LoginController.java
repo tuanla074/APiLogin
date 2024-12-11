@@ -1,7 +1,8 @@
 package com.example.apilogin.Controller;
 
-import com.example.apilogin.Model.LginRequest;
+import com.example.apilogin.Model.userModel;
 import com.example.apilogin.Service.LoginService;
+import com.example.apilogin.Service.UserService; // Assuming you have a service for handling user operations
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -20,8 +23,12 @@ public class LoginController {
     @Autowired
     private LoginService loginService;
 
+    @Autowired
+    private UserService userService; // Assuming you have a service to manage users
+
+    // Existing login endpoint
     @PostMapping
-    public ResponseEntity<String> login(@RequestBody LginRequest requestBod, HttpServletRequest request) {
+    public ResponseEntity<String> login(@RequestBody userModel requestBod, HttpServletRequest request) {
 
         String clientIp = request.getRemoteAddr();  // Get the client IP address
 
@@ -37,6 +44,36 @@ public class LoginController {
         } else {
             logger.warn("Login failed for username={} from IP={}", requestBod.getUsername(), clientIp);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+        }
+    }
+
+    // New GET endpoint to fetch user info
+    @GetMapping("/user")
+    public ResponseEntity<userModel> getUserInfo(@RequestParam String username) {
+        userModel user = loginService.getUserByUsername(username);
+
+        if (user != null) {
+            return ResponseEntity.ok(user);
+        } else {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+    }
+
+    @GetMapping("/users")
+    public List<userModel> getAllUserInfo() {
+        List<userModel> users = userService.getAllUsers();
+        return users;
+    }
+
+    // New POST endpoint to create a new user
+    @PostMapping("/user")
+    public ResponseEntity<String> createUser(@RequestBody userModel newUser) {
+        boolean isCreated = userService.createUser(newUser);
+
+        if (isCreated) {
+            return ResponseEntity.status(HttpStatus.CREATED).body("User created successfully");
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Failed to create user");
         }
     }
 }
