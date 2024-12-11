@@ -13,6 +13,7 @@
         <encoder>
             <pattern>%date %level [%file : %line] %msg%n  </pattern>
         </encoder>
+
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- Rollover daily and with index -->
             <fileNamePattern>logs/log.%d{yyyy-MM-dd}.%i.log.zip</fileNamePattern>
@@ -20,6 +21,11 @@
                 <maxFileSize>2KB</maxFileSize>
             </timeBasedFileNamingAndTriggeringPolicy>
         </rollingPolicy>
+        <turboFilter class="ch.qos.logback.classic.turbo.RegexFilter">
+            <regex>.*login.*</regex>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </turboFilter>
     </appender>
 
     <!-- Loggers for Login Attempts (Specific logs) -->

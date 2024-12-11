@@ -22,6 +22,10 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'ch.qos.logback:logback-classic:1.5.7'  // A compatible version// or a newer version
+    implementation 'ch.qos.logback:logback-core:1.5.7'
+    implementation 'org.springframework.boot:spring-boot-starter-logging'
+    implementation 'org.codehaus.janino:janino:2.5.16'
 }
 
 tasks.named('test') {
