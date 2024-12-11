@@ -1,5 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <configuration>
-
     <!-- Console Appender: Output logs to console -->
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
@@ -7,18 +7,24 @@
         </encoder>
     </appender>
 
-    <!-- File Appender: Output logs to log.txt but filter to log only login attempts and results -->
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+    <!-- Rolling File Appender: Output logs to log.txt and roll over daily and based on size -->
+    <appender name="logfile" class="ch.qos.logback.core.rolling.RollingFileAppender">
         <file>logs/log.txt</file>
         <encoder>
-            <pattern>%d{yyyy-MM-dd HH:mm:ss} - %level - %msg%n</pattern>
+            <pattern>%date %level [%file : %line] %msg%n  </pattern>
         </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <!-- Rollover daily and with index -->
+            <fileNamePattern>logs/log.%d{yyyy-MM-dd}.%i.log.zip</fileNamePattern>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <maxFileSize>2KB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+        </rollingPolicy>
     </appender>
 
     <!-- Loggers for Login Attempts (Specific logs) -->
     <logger name="com.example.apilogin.login" level="INFO">
-        <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
+        <appender-ref ref="logfile"/>
     </logger>
 
     <!-- Exclude non-login logs from file -->
@@ -38,7 +44,7 @@
     <!-- Root Logger: Set default logging for application -->
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
-        <appender-ref ref="FILE"/>
+        <appender-ref ref="logfile"/>
     </root>
 
 </configuration>
