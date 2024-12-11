@@ -3,6 +3,7 @@ package com.example.apilogin.Controller;
 import com.example.apilogin.Model.userModel;
 import com.example.apilogin.Service.LoginService;
 import com.example.apilogin.Service.UserService; // Assuming you have a service for handling user operations
+import com.example.apilogin.Utility.SnowflakeIdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,8 +21,16 @@ public class LoginController {
 
     private static final Logger logger = LoggerFactory.getLogger(LoginController.class);
 
+
     @Autowired
     private LoginService loginService;
+
+    private final SnowflakeIdGenerator snowflakeIdGenerator;
+
+    public LoginController() {
+        // Initialize with some values for machine ID and datacenter ID
+        this.snowflakeIdGenerator = new SnowflakeIdGenerator(1L, 1L); // Change to your own values
+    }
 
     @Autowired
     private UserService userService; // Assuming you have a service to manage users
@@ -68,6 +77,8 @@ public class LoginController {
     // New POST endpoint to create a new user
     @PostMapping("/user")
     public ResponseEntity<String> createUser(@RequestBody userModel newUser) {
+        long generatedId = snowflakeIdGenerator.generateId();
+        newUser.setId(generatedId);
         boolean isCreated = userService.createUser(newUser);
 
         if (isCreated) {
