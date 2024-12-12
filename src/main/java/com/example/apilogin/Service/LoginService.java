@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+import static com.example.apilogin.Utility.Hash.hashPassword;
+
 @Service
 public class LoginService {
 
@@ -31,7 +33,9 @@ public class LoginService {
     public boolean authenticate(String username, String password) {
         if(getUserByUsername(username) != null) {
             String storedPassword = getUserByUsername(username).getPassword();
-            return storedPassword != null && storedPassword.equals(password);
+
+            String hashedPassword = hashPassword(password, getUserByUsername(username).getPassword_salt());
+            return storedPassword != null && storedPassword.equals(hashedPassword);
         }
         System.out.print("user " + getUserByUsername(username) );
         System.out.print("user " + getUserById(0L) );

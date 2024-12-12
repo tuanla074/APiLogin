@@ -3,6 +3,7 @@ package com.example.apilogin.Controller;
 import com.example.apilogin.Model.userModel;
 import com.example.apilogin.Service.LoginService;
 import com.example.apilogin.Service.UserService; // Assuming you have a service for handling user operations
+import com.example.apilogin.Utility.Hash;
 import com.example.apilogin.Utility.SnowflakeIdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,8 @@ import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
+
+import static com.example.apilogin.Utility.Hash.hashPassword;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -78,9 +81,16 @@ public class LoginController {
     @PostMapping("/user")
     public ResponseEntity<String> createUser(@RequestBody userModel newUser) {
         long generatedId = snowflakeIdGenerator.generateId();
+        long salt = snowflakeIdGenerator.generateId();
+        String pass_salt = Long.toString(salt);
+        newUser.setPassword_salt(pass_salt);
+
+        String hashedPassword = hashPassword(newUser.getPassword(), newUser.getPassword_salt());
+        newUser.setPassword(hashedPassword);
+
         newUser.setId(generatedId);
         boolean isCreated = userService.createUser(newUser);
-
+        System.out.println("ID: " + generatedId);
         if (isCreated) {
             return ResponseEntity.status(HttpStatus.CREATED).body("User created successfully");
         } else {

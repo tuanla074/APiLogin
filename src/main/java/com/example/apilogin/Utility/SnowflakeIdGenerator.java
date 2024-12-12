@@ -45,7 +45,28 @@ public class SnowflakeIdGenerator {
 
         lastTimestamp = timestamp;
 
-        return (timestamp << (MACHINE_ID_BITS + DATACENTER_ID_BITS + SEQUENCE_BITS)) |
+        // Safeguard: Check if timestamp can fit in the available bits
+        long timestampShifted = timestamp;
+
+        // Calculate the total number of bits needed for machine ID, datacenter ID, and sequence
+        long totalBitsForMachineAndDatacenterAndSequence = MACHINE_ID_BITS + DATACENTER_ID_BITS + SEQUENCE_BITS;
+
+        // Adjust the timestamp bit allocation dynamically if it's too large to fit
+        if (timestamp > (Long.MAX_VALUE >> totalBitsForMachineAndDatacenterAndSequence)) {
+            // Reduce the size of the timestamp field by shifting the timestamp down
+            timestampShifted = timestamp >> 2; // Reduce the timestamp to fit into the available space
+            System.out.println("Timestamp too large, reducing timestamp size. New timestamp: " + timestampShifted);
+        }
+
+        // Shift the timestamp correctly
+        timestampShifted = timestampShifted << totalBitsForMachineAndDatacenterAndSequence;
+
+        // Debug print statements to ensure correct values
+        System.out.println("Timestamp: " + timestamp);
+        System.out.println("Adjusted Timestamp: " + timestampShifted);
+
+        // Return the final Snowflake ID with no overflow
+        return timestampShifted |
                 (datacenterId << (MACHINE_ID_BITS + SEQUENCE_BITS)) |
                 (machineId << SEQUENCE_BITS) |
                 sequence;
