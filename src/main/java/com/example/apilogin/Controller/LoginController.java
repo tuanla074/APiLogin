@@ -2,6 +2,7 @@ package com.example.apilogin.Controller;
 
 import com.example.apilogin.Model.userModel;
 import com.example.apilogin.Service.LoginService;
+import com.example.apilogin.Service.UserInfoService;
 import com.example.apilogin.Service.UserService; // Assuming you have a service for handling user operations
 import com.example.apilogin.Utility.Hash;
 import com.example.apilogin.Utility.SnowflakeIdGenerator;
@@ -38,9 +39,12 @@ public class LoginController {
     @Autowired
     private UserService userService; // Assuming you have a service to manage users
 
+    @Autowired
+    private UserInfoService userInfoService;
+
     // Existing login endpoint
     @PostMapping
-    public ResponseEntity<String> login(@RequestBody userModel requestBod, HttpServletRequest request) {
+    public ResponseEntity<Object> login(@RequestBody userModel requestBod, HttpServletRequest request) {
 
         String clientIp = request.getRemoteAddr();  // Get the client IP address
 
@@ -51,8 +55,9 @@ public class LoginController {
         boolean isAuthenticated = loginService.authenticate(requestBod.getUsername(), requestBod.getPassword());
 
         if (isAuthenticated) {
+            Object userInfo = userInfoService.getUserInfoByUserId(loginService.getUserByUsername(requestBod.getUsername()).getId());
             logger.info("Login successful for username={} from IP={}", requestBod.getUsername(), clientIp);
-            return ResponseEntity.ok("Login successful");
+            return ResponseEntity.ok(userInfo);
         } else {
             logger.warn("Login failed for username={} from IP={}", requestBod.getUsername(), clientIp);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
