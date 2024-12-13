@@ -1,6 +1,7 @@
 package com.example.apilogin.Controller;
 
 import com.example.apilogin.Model.userModel;
+import com.example.apilogin.Service.LoginKafkaService;
 import com.example.apilogin.Service.LoginService;
 import com.example.apilogin.Service.UserInfoService;
 import com.example.apilogin.Service.UserService; // Assuming you have a service for handling user operations
@@ -8,6 +9,7 @@ import com.example.apilogin.Utility.Hash;
 import com.example.apilogin.Utility.SnowflakeIdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +18,8 @@ import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static com.example.apilogin.Utility.Hash.hashPassword;
 
@@ -42,27 +46,45 @@ public class LoginController {
     @Autowired
     private UserInfoService userInfoService;
 
-    // Existing login endpoint
+    @Autowired
+    private KafkaTemplate<Long, String> kafkaTemplate;
+
+    @Autowired
+    private LoginKafkaService loginKafkaService;
+
     @PostMapping
     public ResponseEntity<Object> login(@RequestBody userModel requestBod, HttpServletRequest request) {
-
-        String clientIp = request.getRemoteAddr();  // Get the client IP address
-
-        // Logging input details
+        String clientIp = request.getRemoteAddr();
         logger.info("Login attempt: username={}, IP={}", requestBod.getUsername(), clientIp);
 
-        // Example logic for validating login (replace with your real authentication logic)
+        // Authenticate the user
         boolean isAuthenticated = loginService.authenticate(requestBod.getUsername(), requestBod.getPassword());
 
-        if (isAuthenticated) {
-            Object userInfo = userInfoService.getUserInfoByUserId(loginService.getUserByUsername(requestBod.getUsername()).getId());
-            logger.info("Login successful for username={} from IP={}", requestBod.getUsername(), clientIp);
-            return ResponseEntity.ok(userInfo);
-        } else {
+        if (!isAuthenticated) {
             logger.warn("Login failed for username={} from IP={}", requestBod.getUsername(), clientIp);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
         }
+
+        // Get userId for the authenticated user
+        Long userId = loginService.getUserByUsername(requestBod.getUsername()).getId();
+
+        // Send userId to Kafka
+        kafkaTemplate.send("user-id-topic", userId, "Requesting user info for ID: " + userId);
+        logger.info("UserID sent to Kafka: {}", userId);
+
+        // Wait for UserInfo response asynchronously
+        try {
+            CompletableFuture<Map<String, Object>> userInfoFuture = loginKafkaService.waitForUserInfo(userId);
+            Map<String, Object> userInfo = userInfoFuture.get(); // Block until the response arrives
+            logger.info("UserInfo received for userId={} from Kafka: {}", userId, userInfo);
+
+            return ResponseEntity.ok(userInfo);
+        } catch (Exception e) {
+            logger.error("Failed to retrieve UserInfo for userId={}", userId, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to fetch user info");
+        }
     }
+
 
     // New GET endpoint to fetch user info
     @GetMapping("/user")
