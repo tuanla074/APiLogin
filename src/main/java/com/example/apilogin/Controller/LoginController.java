@@ -1,9 +1,7 @@
 package com.example.apilogin.Controller;
 
 import com.example.apilogin.Model.userModel;
-import com.example.apilogin.Service.LoginService;
-import com.example.apilogin.Service.UserInfoService;
-import com.example.apilogin.Service.UserService; // Assuming you have a service for handling user operations
+import com.example.apilogin.Service.*;
 import com.example.apilogin.Utility.Hash;
 import com.example.apilogin.Utility.SnowflakeIdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +14,8 @@ import org.springframework.http.HttpStatus;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import static com.example.apilogin.Utility.Hash.hashPassword;
 
@@ -42,27 +42,38 @@ public class LoginController {
     @Autowired
     private UserInfoService userInfoService;
 
-    // Existing login endpoint
+
+    @Autowired
+    private KafkaProducerService kafkaProducerService;
+
+    @Autowired
+    private KafkaResponseListener kafkaResponseListener;
+
     @PostMapping
-    public ResponseEntity<Object> login(@RequestBody userModel requestBod, HttpServletRequest request) {
+    public ResponseEntity<Object> login(@RequestBody userModel requestBody) {
+        // Authenticate the user locally (restore this functionality)
+        boolean isAuthenticated = loginService.authenticate(requestBody.getUsername(), requestBody.getPassword());
+        if (!isAuthenticated) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password.");
+        }
 
-        String clientIp = request.getRemoteAddr();  // Get the client IP address
+        // Send request to Kafka
+        kafkaProducerService.sendMessage("user-requests", Long.toString(loginService.getUserByUsername(requestBody.getUsername()).getId()));
 
-        // Logging input details
-        logger.info("Login attempt: username={}, IP={}", requestBod.getUsername(), clientIp);
+        try {
+            // Wait for response from Kafka
+            CompletableFuture<Object> responseFuture = kafkaResponseListener.getResponseFuture(Long.toString(loginService.getUserByUsername(requestBody.getUsername()).getId()));
+            Object response = responseFuture.get(50, TimeUnit.SECONDS); // Timeout after 50 seconds
 
-        // Example logic for validating login (replace with your real authentication logic)
-        boolean isAuthenticated = loginService.authenticate(requestBod.getUsername(), requestBod.getPassword());
-
-        if (isAuthenticated) {
-            Object userInfo = userInfoService.getUserInfoByUserId(loginService.getUserByUsername(requestBod.getUsername()).getId());
-            logger.info("Login successful for username={} from IP={}", requestBod.getUsername(), clientIp);
-            return ResponseEntity.ok(userInfo);
-        } else {
-            logger.warn("Login failed for username={} from IP={}", requestBod.getUsername(), clientIp);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+            // Return the Kafka response wrapped in ResponseEntity
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            // Handle timeout or other exceptions
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.REQUEST_TIMEOUT).body("Error: Kafka processing timed out or failed.");
         }
     }
+
 
     // New GET endpoint to fetch user info
     @GetMapping("/user")
