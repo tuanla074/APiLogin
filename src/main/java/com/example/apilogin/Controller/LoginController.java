@@ -1,10 +1,8 @@
 package com.example.apilogin.Controller;
 
+import com.example.apilogin.DTO.RegisterRequestDTO;
 import com.example.apilogin.Model.userModel;
-import com.example.apilogin.Service.LoginKafkaService;
-import com.example.apilogin.Service.LoginService;
-import com.example.apilogin.Service.UserInfoService;
-import com.example.apilogin.Service.UserService; // Assuming you have a service for handling user operations
+import com.example.apilogin.Service.*;
 import com.example.apilogin.Utility.Hash;
 import com.example.apilogin.Utility.SnowflakeIdGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +49,9 @@ public class LoginController {
 
     @Autowired
     private LoginKafkaService loginKafkaService;
+
+    @Autowired
+    private RegisterEventProducer registerEventProducer;
 
     @PostMapping
     public ResponseEntity<Object> login(@RequestBody userModel requestBod, HttpServletRequest request) {
@@ -124,4 +125,31 @@ public class LoginController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Failed to create user");
         }
     }
+
+    @PostMapping("/register")
+    public ResponseEntity<String> registerUser(@RequestBody RegisterRequestDTO registerRequest) {
+        // Check if username already exists
+        if (userService.getUserByUsername(registerRequest.getUsername()) != null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Username already exists");
+        }
+
+        // Create a userModel for users table
+        userModel newUser = new userModel();
+        long generatedId = snowflakeIdGenerator.generateId();
+        long salt = snowflakeIdGenerator.generateId();
+        newUser.setId(generatedId);
+        newUser.setFullname(registerRequest.getFullname());
+        newUser.setUsername(registerRequest.getUsername());
+        newUser.setPassword_salt(Long.toString(salt));
+        newUser.setPassword(hashPassword(registerRequest.getPassword(), newUser.getPassword_salt()));
+
+        // Save user to users table
+        userService.createUser(newUser);
+
+        // Save additional info to user_info table
+        registerEventProducer.sendRegisterEvent(generatedId, registerRequest.getAge(), registerRequest.getAddress());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
+    }
+
 }
