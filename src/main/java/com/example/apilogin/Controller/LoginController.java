@@ -146,10 +146,12 @@ public class LoginController {
         // Save user to users table
         userService.createUser(newUser);
 
-        // Save additional info to user_info table
-        registerEventProducer.sendRegisterEvent(generatedId, registerRequest.getAge(), registerRequest.getAddress());
+        // Set userId in RegisterRequestDTO and send to Kafka
+        registerRequest.setId(generatedId);
+        registerEventProducer.sendRegisterEvent(registerRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
     }
+
 
 }
